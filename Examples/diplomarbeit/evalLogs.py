@@ -73,7 +73,7 @@ def evalGraph():
     df = pd.DataFrame(columns=columns)
     outputs = set()
     rows = []
-    with open("log_graph.txt", "r") as log:
+    with open("log_graphArray.txt", "r") as log:
         for line in log:
             data = json.loads(line)
             if data["Type"] == "tree":

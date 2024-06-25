@@ -308,6 +308,16 @@ def addMockEdgeVertices  (helper: parsingArityHelper) (me:mockEdge) (currGraph: 
       Except.ok (g2, i, l, atomPosMap2)
 
 lemma addMockEdgeVerticesStartInArray (helper: parsingArityHelper) (me:mockEdge) (currGraph g: Graph (groundAtom (parsingSignature helper))) (atomPosMap atomPosMap': Std.HashMap (groundAtom (parsingSignature helper)) ℕ) (i:ℕ) (l: List ℕ) (h: addMockEdgeVertices helper me currGraph atomPosMap = Except.ok (g, i, l, atomPosMap')): i < g.val.size := by
+  revert h
+  unfold addMockEdgeVertices
+  split
+  simp
+
+  rename_i g' j atomPosMap2 h
+  split
+  simp
+  rename_i g2 l2 atomPosMap3 h'
+  simp
   sorry
 
 
@@ -330,7 +340,7 @@ def getGraph.go (helper: parsingArityHelper) (l: List mockEdge) (currGraph: Grap
 
 
 def getGraph (helper: parsingArityHelper) (g: mockGraph): Except String (Graph (groundAtom (parsingSignature helper))) :=
-  sorry
+  getGraph.go helper g.edges (Graph.emptyGraph (groundAtom (parsingSignature helper))) Std.mkHashMap
 
 structure graphVerificationProblem (helper: parsingArityHelper) where
   (graph: Graph (groundAtom (parsingSignature helper)))

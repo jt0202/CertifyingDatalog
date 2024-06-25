@@ -65,11 +65,11 @@ def completenessExperiments():
                 log.write(json.dumps({"Type": "tree", "density": density, "numNodes": numNodes, "completeness": False,"trees": problem["trees"], "Result": result.stdout, "Preparation time": str(preparation), "Validation time": str(duration)})+ "\n")
 
 def graphExperiments():
-    #densities = [0.01, 0.05, 0.1, 0.3]
-    densities = [0.5]
+    densities = [0.01, 0.05, 0.1, 0.3]
+    #densities = [0.5]
     numNodes = 100
-    tries = 5
-    logFile = "log_graph.txt"
+    tries = 1
+    logFile = "log_graphArray.txt"
     for density in densities:
         for i in range(0,tries):
             print(density)
@@ -319,6 +319,6 @@ def galenExperiments():
                 log.write(json.dumps({"graph": problem["graph"], "Result": result.stdout, "Nemo time": nemoTime, "Preparation time": str(preparation), "Validation time": str(duration), "numberAtoms": atomNumber})+"\n")
 
 graphExperiments()
-graphExperiments2()
+#graphExperiments2()
 #galenExperiments()
 #exponentialExample()

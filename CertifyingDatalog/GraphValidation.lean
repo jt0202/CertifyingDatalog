@@ -107,10 +107,12 @@ namespace PreGraph
 
   end PreGraph
 
-abbrev Graph (A: Type) [DecidableEq A] [Hashable A] := { pg : PreGraph A // pg.complete }
+abbrev Graph (A: Type) [DecidableEq A] := { pg : PreGraph A // pg.complete }
 
 namespace Graph
-  variable {A: Type}[DecidableEq A][Hashable A]
+  variable {A: Type}[DecidableEq A]
+
+  def emptyGraph (A: Type) [DecidableEq A]: Graph A := {val:= PreGraph.emptyPreGraph A, property:= PreGraph.emptyPreGraphComplete}
 
   def vertices (g : Graph A) : List ℕ := g.val.vertices
   def successors (g : Graph A) (n : ℕ) : List ℕ := g.val.successors n
