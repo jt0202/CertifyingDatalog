@@ -98,7 +98,7 @@ def checkValidnessGraphMockDatabase {helper: parsingArityHelper} (problem: graph
   let d:= mockDatabase (parsingSignature helper)
   dfs problem.graph (fun a l => localValidityCheck m d l a)
 
-lemma checkValidnessGraphMockDatabaseIffAllValid {helper: parsingArityHelper}  (problem: graphVerificationProblem helper): checkValidnessGraphMockDatabase problem = Except.ok () ↔ isAcyclic problem.graph ∧ (∀ (a:groundAtom (parsingSignature helper) ), a ∈ problem.graph.vertices → locallyValid problem.program.toFinset (mockDatabase (parsingSignature helper)) a problem.graph) ∧ problem.graph.vertices.toSet ⊆ proofTheoreticSemantics problem.program.toFinset (mockDatabase (parsingSignature helper)) :=
+lemma checkValidnessGraphMockDatabaseIffAllValid {helper: parsingArityHelper}  (problem: graphVerificationProblem helper): checkValidnessGraphMockDatabase problem = Except.ok () ↔ isAcyclic problem.graph ∧ (∀ (a:ℕ) (mem: a ∈ problem.graph.vertices), locallyValid problem.program.toFinset (mockDatabase (parsingSignature helper)) a problem.graph mem)  ∧ problem.graph.labels.toSet ⊆ proofTheoreticSemantics problem.program.toFinset (mockDatabase (parsingSignature helper)) :=
 by
   unfold checkValidnessGraphMockDatabase
   rw [dfs_semantics]
@@ -213,14 +213,14 @@ def mainCheckGraphMockDatabase {helper: parsingArityHelper} (problem: graphVerif
   match dfs problem.graph (fun a l => localValidityCheck m d l a)   with
   | Except.error e => Except.error e
   | Except.ok _ =>
-    match modelChecker problem.graph.vertices problem.program safe with
+    match modelChecker problem.graph.labels problem.program safe with
     | Except.error e => Except.error e
     | Except.ok _ =>
-      if mockDatabaseContainedInModel d (List.toSet problem.graph.vertices) = true
+      if mockDatabaseContainedInModel d (List.toSet problem.graph.labels) = true
       then Except.ok ()
       else Except.error "Model does not contain database"
 
-lemma mainCheckGraphMockDatabaseUnitIffSolution {helper: parsingArityHelper} (problem: graphVerificationProblem helper) (safe: ∀ (r: rule (parsingSignature helper) ), r ∈ problem.program → r.isSafe): mainCheckGraphMockDatabase problem safe = Except.ok () ↔ (List.toSet problem.graph.vertices) = proofTheoreticSemantics problem.program.toFinset (mockDatabase (parsingSignature helper)) ∧ isAcyclic problem.graph ∧ (∀ (a:groundAtom (parsingSignature helper) ), a ∈ problem.graph.vertices → locallyValid problem.program.toFinset (mockDatabase (parsingSignature helper)) a problem.graph):=
+lemma mainCheckGraphMockDatabaseUnitIffSolution {helper: parsingArityHelper} (problem: graphVerificationProblem helper) (safe: ∀ (r: rule (parsingSignature helper) ), r ∈ problem.program → r.isSafe): mainCheckGraphMockDatabase problem safe = Except.ok () ↔ (List.toSet problem.graph.labels) = proofTheoreticSemantics problem.program.toFinset (mockDatabase (parsingSignature helper)) ∧ isAcyclic problem.graph ∧ (∀ (a:ℕ)(mem: a ∈ problem.graph.vertices), locallyValid problem.program.toFinset (mockDatabase (parsingSignature helper)) a problem.graph mem):=
 by
   unfold mainCheckGraphMockDatabase
   simp
@@ -232,12 +232,12 @@ by
     simp[dfs_result] at h
   | ok _ =>
     simp [dfs_result] at h
-    cases modelCheck: modelChecker problem.graph.vertices problem.program safe with
+    cases modelCheck: modelChecker problem.graph.labels problem.program safe with
     | error e =>
       simp [modelCheck] at h
     | ok _ =>
       simp only [modelCheck] at h
-      have db: mockDatabaseContainedInModel (mockDatabase (parsingSignature helper)) (List.toSet problem.graph.vertices) = true := by
+      have db: mockDatabaseContainedInModel (mockDatabase (parsingSignature helper)) (List.toSet problem.graph.labels) = true := by
         by_contra p
         simp [p] at h
 
@@ -284,10 +284,10 @@ by
     rfl
   simp [dfs_result]
 
-  have modelChecker: modelChecker problem.graph.vertices problem.program safe = Except.ok () := by
+  have modelChecker: modelChecker problem.graph.labels problem.program safe = Except.ok () := by
     rw [modelCheckerUnitIffAllRulesTrue]
     intro r rP
-    have ismodel: model problem.program.toFinset (mockDatabase (parsingSignature helper)) (List.toSet problem.graph.vertices) := by
+    have ismodel: model problem.program.toFinset (mockDatabase (parsingSignature helper)) (List.toSet problem.graph.labels) := by
       rw [semantics]
       apply proofTheoreticSemanticsIsModel
     unfold model at ismodel

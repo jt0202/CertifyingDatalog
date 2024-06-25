@@ -1190,8 +1190,6 @@ lemma HashMap.not_contains_find_none (m: HashMap A B) (a:A) (h: ¬ m.contains a 
   | none =>
     rfl
 
--- Axioms for HashMap
-
 theorem HashMap.findD_is_default_when_not_contains (hm : HashMap A B) (a : A) (h : ¬ hm.contains a) : ∀ b, hm.findD a b = b := by
   intro b
   rw [findD_eq_find?]
@@ -1203,24 +1201,6 @@ theorem HashMap.findD_is_default_when_not_contains (hm : HashMap A B) (a : A) (h
   contradiction
 
   rfl
-
-theorem HashMap.in_projection_of_toList_iff_contains (hm : HashMap A B) (a : A) : a ∈ hm.toList.map Prod.fst ↔ hm.contains a := by
-  rw [List.mem_map]
-  simp
-  unfold toList
-  unfold fold
-  unfold Imp.fold
-  unfold Id.run
-  unfold Imp.foldM
-  rw [Array.foldlM_eq_foldlM_data, List.foldlM_eq_foldl]
-  simp
-  sorry
-
-theorem HashMap.ofList_mapped_to_pair_contains_iff_list_elem (l : List A) (a : A) : ∀ b : B, (Std.HashMap.ofList (l.map (fun a => (a, b)))).contains a ↔ a ∈ l := by sorry
-
-theorem HashMap.for_keys_in_map_inserting_findD_does_not_change (hm : HashMap A B) (a : A) (a_in_hm : hm.contains a) : ∀ b, hm.insert a (hm.findD a b) = hm := by sorry
-
-theorem HashMap.findD_ofList_is_list_find_getD (l : List (A × B)) (a : A) : ∀ b, (Std.HashMap.ofList l).findD a b = ((l.find? (fun x => x.fst == a)).map Prod.snd).getD b := by sorry
 
 theorem HashMap.findD_insert (hm : HashMap A B) (a a' : A) (h: ¬ hm.contains a = true): ∀ b, (hm.insert a b).findD a' b = hm.findD a' b := by
   intro b

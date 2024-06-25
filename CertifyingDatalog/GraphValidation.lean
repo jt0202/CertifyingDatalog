@@ -33,6 +33,78 @@ namespace PreGraph
 
   def successorLabels (pg: PreGraph A) (n: ℕ) (mem: n ∈ pg.vertices) (compl: pg.complete): List A := List.map (fun ⟨x, _h⟩ => label pg x (compl n x mem _h)) (pg.successors n).attach
 
+  def emptyPreGraph (A: Type) [DecidableEq A]: PreGraph A := #[]
+
+  lemma emptyPreGraphComplete: PreGraph.complete (emptyPreGraph A):= by
+    unfold complete
+    unfold emptyPreGraph
+    unfold vertices
+    unfold successors
+    unfold Array.enum
+    simp
+
+  def addVertice (pg: PreGraph A) (a:A): PreGraph A :=
+    pg.push (a, [])
+
+  lemma addVerticePreservesComplete (pg: PreGraph A) (a:A) (compl: pg.complete): addVertice pg a |>.complete := by
+    simp_rw [complete, addVertice,vertices, successors, Array.enum, Array.getD] at *
+
+    intro n m hn
+    split
+    rename_i h
+    simp at h
+    rw [← Nat.succ_eq_add_one, Nat.lt_succ_iff_lt_or_eq] at h
+    intro hm
+    cases h with
+    | inl h =>
+      simp
+      specialize compl n m
+      simp at compl
+      apply Nat.lt_trans
+      apply compl
+      exact h
+      simp [h]
+      simp[Array.get_push, h] at hm
+      exact hm
+      simp
+    | inr h =>
+      simp at *
+      simp [h, Array.get_push] at hm
+
+    simp
+
+
+  def addSuccessors (pg: PreGraph A) (start: ℕ) (h: start < pg.size) (succs: List ℕ): PreGraph A:=
+    let pos := Fin.mk start h
+    let curr := pg.get pos
+  pg.set pos (curr.1, curr.2.append succs)
+
+  lemma addSuccessorsPreservesComplete (pg: PreGraph A) (start: ℕ) (h: start < pg.size) (succs: List ℕ) (succ_mem: ∀ (i: ℕ), i ∈ succs → i < pg.size) (compl: pg.complete): addSuccessors pg start h succs|>.complete := by
+    simp [complete, addSuccessors,vertices, successors, Array.enum, Array.getD] at *
+    intro n m hn
+    simp[hn, Array.get_set]
+    split
+    rename_i start_n
+    simp
+    intro h
+    cases h with
+    | inl h =>
+      apply compl
+      apply hn
+      simp[hn]
+      simp_rw [← start_n]
+      exact h
+    | inr h =>
+      apply succ_mem
+      exact h
+
+    intro h
+    apply compl
+    apply hn
+    simp[hn]
+    exact h
+
+
   end PreGraph
 
 abbrev Graph (A: Type) [DecidableEq A] [Hashable A] := { pg : PreGraph A // pg.complete }
@@ -51,6 +123,10 @@ namespace Graph
 
   theorem complete (g : Graph A) : ∀ (n: ℕ ), n ∈ g.vertices →  ∀ (m: ℕ), m ∈ g.successors n → m ∈ g.vertices := by
     aesop
+
+  def addVertex (g: Graph A) (a:A): Graph A := {val:=g.val.addVertice a, property:= PreGraph.addVerticePreservesComplete g.val a g.property}
+
+  def addSuccessors (g: Graph A) (start: ℕ) (h: start < g.val.size) (succs: List ℕ) (succ_mem: ∀ (i: ℕ), i ∈ succs → i < g.val.size): Graph A := {val:= g.val.addSuccessors start h succs, property:= PreGraph.addSuccessorsPreservesComplete g.val start h succs succ_mem g.property}
 end Graph
 
 section dfs
