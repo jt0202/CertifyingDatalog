@@ -76,40 +76,42 @@ def graphExperiments():
             print(i)
             generateGraph(numNodes, density)
 
+            # Generate datalog result
             start = time.time()
             subprocess.run(["nmo", "-so" ,ruleFile])
             nemoTime = time.time() - start
 
-
-            print("Start")
-            start = time.time()
-            inputCreatorNemo.main(folder, ruleFile, "-t")
+            # Check only soundness trees
+            # print("Start")
+            # start = time.time()
+            # inputCreatorNemo.main(folder, ruleFile, "-t")
             
             
-            preparation = time.time() - start
+            # preparation = time.time() - start
             
-            problemFile = ruleFile.split(".")[0] + ".tree.json"
+            # problemFile = ruleFile.split(".")[0] + ".tree.json"
 
-            with open(problemFile) as file:
-                problem = json.load(file)
+            # with open(problemFile) as file:
+            #     problem = json.load(file)
             
 
-            start = time.time()
-            result = subprocess.run([certifyingDatalogPath, "-c", problemFile], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            # start = time.time()
+            # result = subprocess.run([certifyingDatalogPath, "-c", problemFile], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
 
-            duration = time.time() - start
+            # duration = time.time() - start
             
-            with open(logFile , "a") as log:
-                log.write(json.dumps({"Type": "tree", "density": density, "numNodes": numNodes, "completeness": True,"trees": problem["trees"], "Result": result.stdout, "Preparation time": str(preparation), "Validation time": str(duration)})+ "\n")
+            # with open(logFile , "a") as log:
+            #     log.write(json.dumps({"Type": "tree", "density": density, "numNodes": numNodes, "completeness": True,"trees": problem["trees"], "Result": result.stdout, "Preparation time": str(preparation), "Validation time": str(duration)})+ "\n")
 
-            start = time.time()
-            result = subprocess.run([certifyingDatalogPath, problemFile], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+            # start = time.time()
+            # result = subprocess.run([certifyingDatalogPath, problemFile], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
 
-            duration = time.time() - start
+            # duration = time.time() - start
             
-            with open(logFile , "a") as log:
-                log.write(json.dumps({"Type": "tree", "density": density, "numNodes": numNodes, "completeness": False,"trees": problem["trees"], "Result": result.stdout, "Preparation time": str(preparation), "Validation time": str(duration)})+ "\n")
-
+            # with open(logFile , "a") as log:
+            #     log.write(json.dumps({"Type": "tree", "density": density, "numNodes": numNodes, "completeness": False,"trees": problem["trees"], "Result": result.stdout, "Preparation time": str(preparation), "Validation time": str(duration)})+ "\n")
+            
+            #Check only soundness graph
             print("Start")
             start = time.time()
             inputCreatorNemo.main(folder, ruleFile, "-g")
@@ -318,7 +320,35 @@ def galenExperiments():
                 
                 log.write(json.dumps({"graph": problem["graph"], "Result": result.stdout, "Nemo time": nemoTime, "Preparation time": str(preparation), "Validation time": str(duration), "numberAtoms": atomNumber})+"\n")
 
-graphExperiments()
+def ographExperiments():
+    #densities = [0.01, 0.05, 0.1, 0.3]
+    densities = [0.5]
+    numNodes = 100
+    ruleFile = "tc.rls"
+    tries = 1
+    for density in densities:
+        for i in range(0,tries):
+            print(density)
+            generateGraph(numNodes, density)
+
+            # Generate datalog result
+            subprocess.run(["nmo", "-so" ,ruleFile])
+
+            inputCreatorNemo.main(folder, ruleFile, "-o")
+            problemFile = ruleFile.split(".")[0] + ".ograph.json"
+            with open(problemFile) as file:
+                object= json.load(file)
+                print("p")
+
+            start = time.time()
+            result = subprocess.run([certifyingDatalogPath, "-o", problemFile], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+
+            duration = time.time() - start
+            print(duration) 
+
+
+
+ographExperiments()
 #graphExperiments2()
 #galenExperiments()
 #exponentialExample()

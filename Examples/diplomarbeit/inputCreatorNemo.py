@@ -210,7 +210,54 @@ def parseGraph (json_object):
         end = convertNemoAtomToJson(tokenize(normalizeQuotationmarks(inf["conclusion"])))
         edges.append({"vertex": end, "successors": list(map(lambda x: convertNemoAtomToJson(tokenize(normalizeQuotationmarks(x))), inf["premises"]))})
 
-    return {"edges": edges}        
+    return {"edges": edges}
+
+def parseOrderedGraph (json_object):
+    edges = []
+
+    for inf in json_object["inferences"]:
+        edges.append((inf["conclusion"], inf["premises"]))        
+
+    #toposort
+    edgeList = []
+    topologicalsort = {}
+    currNum = 0
+    changed = True
+
+    while changed:
+        changed = False
+        for edge in edges:
+            if edge[0] in topologicalsort.keys():
+                continue
+            containPredecessors = True
+            for predecessor in edge[1]:
+                if not predecessor in topologicalsort.keys():
+                    containPredecessors = False
+                    break
+            
+            if containPredecessors is True:
+                topologicalsort[edge[0]] = currNum
+                edgeList.append((edge[0], list(map(lambda x: topologicalsort[x], edge[1]))))
+                currNum = currNum + 1
+                changed = True
+                break
+
+    if len(edges) != len(edgeList):
+        print("Graph is not acyclic")
+        exit(0)
+    
+    print("done")
+
+    outputEdges = []
+
+    for edge in edgeList:
+        label = convertNemoAtomToJson(tokenize(normalizeQuotationmarks(edge[0])))
+
+        outputEdges.append({"label": label, "predecessors": edge[1]})
+    
+    return outputEdges
+
+
 
 def main(*args):
     complete = False
@@ -222,7 +269,7 @@ def main(*args):
         if args[0] == "--help" or args[0] == "-h":
             print("First input: path to folder where the data and results are stored")
             print("Second input: program file name, stored at the path above")
-            print("Third input: -t for trees as output format or -g for graph output")
+            print("Third input: -t for trees as output format or -g for graph output or -o for an ordered graph output")
             print("Additional inputs may be ground atoms which should be tested")
             print("If no additional arguments are added, then the program will grab everything from the results folder and ask for trees for them.")
             return
@@ -231,26 +278,32 @@ def main(*args):
             ruleFile = args[1]
             folder = args[0]
             if args[2] == "-t":
-                useTrees = True
+                format = "tree"
             elif args[2] == "-g":
-                useTrees = False
+                format = "graph"
+            elif args[2] == "-o":
+                format = "ograph"
             else:
                 print ("Unknown option. Neither -g nor -t")
                 return
         else: 
             folder = args.pop(0)
             ruleFile = args.pop(0)
-            treeOption = args.pop(0)
-            if treeOption == "-t":
-                useTrees = True
-            elif treeOption == "-g":
-                useTrees = False
+            formatOpt = args.pop(0)
+            if formatOpt == "-t":
+                format = "tree"
+            elif formatOpt == "-g":
+                format = "graph"
+            elif formatOpt == "-o":
+                format = "ograph"
+
             else:
                 print ("Unknown option. Neither -g nor -t")
                 return
             model = args
 
     problemName = ruleFile.split(".")[0]
+    print(problemName)
     originalDir = os.getcwd()
     os.chdir(folder)
 
@@ -270,7 +323,7 @@ def main(*args):
     with open(ruleFile, "r") as file:
         program = convertNemoProgramToJson(file.readlines())
 
-    if useTrees:
+    if format == "tree":
         trees = []
         with open("temp") as f:
             trees = (parseTrees(json.load(f)))
@@ -291,7 +344,7 @@ def main(*args):
         os.chdir(originalDir)
         with open(problemName + ".tree.json", "w") as f:
             json.dump({"trees": trees, "program": program}, f, ensure_ascii=False)
-    else:
+    elif format == "graph":
         # graph output
         with open("temp") as f:
             graph = (parseGraph(json.load(f)))
@@ -301,9 +354,11 @@ def main(*args):
         with open(problemName + ".graph.json", "w") as f:
             json.dump({"graph": graph, "program": program}, f, ensure_ascii=False)
 
-if __name__ == "__main__":
-    import sys
-    #main(*sys.argv[1:])
-    main("./", "tc.rls", "-t", "trans(0,1000)")
-    main("./", "tc.rls", "-g", "trans(0,1000)")
+    elif format == "ograph":
+        with open("temp") as f:
+            graph = parseOrderedGraph(json.load(f))
+
+        os.chdir(originalDir)
+        with open(problemName + ".ograph.json", "w") as f:
+            json.dump({"graph": {"vertices": graph}, "program": program}, f, ensure_ascii=False)
 

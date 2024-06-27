@@ -390,7 +390,7 @@ def parseArgsHelper (args: List String) (curr: argsParsed) : Except String argsP
   | hd::tl =>
     if hd ∈ ["-h", "--help"]
     then Except.ok {programFileName := "", complete := false, help := true, format:= inputFormat.trees}
-    else  if hd ∈  ["-c", "-g"]
+    else  if hd ∈  ["-c", "-g", "-o"]
           then
             if hd == "-c"
             then parseArgsHelper tl {programFileName := "", complete := true, help := false, format:= curr.format}

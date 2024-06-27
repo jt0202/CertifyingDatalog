@@ -364,9 +364,16 @@ def convertGraphProblemInputToGraphVerificationProblem (input: graphInputProblem
 
 -- orderedGraph
 
-structure mockOrderedGraph: Type where
-  (vertices: Array (mockAtom × List ℕ))
+structure mockOrderedGraphVertex where
+  (label: mockAtom)
+  (predecessors: List ℕ)
 deriving Lean.FromJson, Lean.ToJson
+
+
+structure mockOrderedGraph: Type where
+  (vertices: Array mockOrderedGraphVertex)
+deriving Lean.FromJson, Lean.ToJson
+
 
 def getOrderedGraph.go (helper: parsingArityHelper) (mg: mockOrderedGraph) (curr: orderedProofGraph (parsingSignature helper)) (pos: ℕ): Except String (orderedProofGraph (parsingSignature helper)) :=
   if h: pos < mg.vertices.size
