@@ -2,6 +2,7 @@ import Std.Data.List.Basic
 import CertifyingDatalog.Datalog
 import CertifyingDatalog.Basic
 import CertifyingDatalog.GraphValidation
+import CertifyingDatalog.OrderedGraphValidation
 import Lean.Data.Json.FromToJson
 
 def NatToString (n: ℕ): String :=
@@ -355,6 +356,50 @@ def convertGraphProblemInputToGraphVerificationProblem (input: graphInputProblem
   | Except.error e => Except.error ("Error parsing program --" ++ e)
   | Except.ok helper =>
     match getGraph helper input.graph with
+    | Except.error e => Except.error ("Error parsing graph --" ++ e)
+    | Except.ok graph =>
+      match List.map_except (transformMockRuleToRule helper) input.program with
+    | Except.error e => Except.error ("Error parsing program -- " ++ e)
+    | Except.ok program => Except.ok {helper := helper, problem := {graph := graph, program := program}}
+
+-- orderedGraph
+
+structure mockOrderedGraph: Type where
+  (vertices: Array (mockAtom × List ℕ))
+deriving Lean.FromJson, Lean.ToJson
+
+def getOrderedGraph.go (helper: parsingArityHelper) (mg: mockOrderedGraph) (curr: orderedProofGraph (parsingSignature helper)) (pos: ℕ): Except String (orderedProofGraph (parsingSignature helper)) :=
+  if h: pos < mg.vertices.size
+  then
+    match transformMockAtomToGroundAtom helper mg.vertices[pos].1 with
+    | Except.error e => Except.error e
+    | Except.ok a =>
+      getOrderedGraph.go helper mg (curr.push (a, mg.vertices[pos].2)) (Nat.succ pos)
+  else
+    Except.ok curr
+termination_by mg.vertices.size - pos
+
+def getOrderedGraph (helper: parsingArityHelper) (mg: mockOrderedGraph):  Except String (orderedProofGraph (parsingSignature helper)) := getOrderedGraph.go helper mg #[] 0
+
+
+structure orderedGraphInputProblem where
+  (graph: mockOrderedGraph)
+  (program: List mockRule)
+deriving Lean.FromJson, Lean.ToJson
+
+structure orderedGraphVerificationProblem (helper: parsingArityHelper) where
+  (graph: orderedProofGraph (parsingSignature helper))
+  (program: List (rule (parsingSignature helper)))
+
+structure orderedGraphVerificationProblemSignatureWrapper where
+  (helper: parsingArityHelper)
+  (problem: orderedGraphVerificationProblem helper)
+
+def convertOrderedGraphProblemInputToOrderedGraphVerificationProblem (input: orderedGraphInputProblem): Except String orderedGraphVerificationProblemSignatureWrapper :=
+  match getArityHelperFromProgram input.program with
+  | Except.error e => Except.error ("Error parsing program --" ++ e)
+  | Except.ok helper =>
+    match getOrderedGraph helper input.graph with
     | Except.error e => Except.error ("Error parsing graph --" ++ e)
     | Except.ok graph =>
       match List.map_except (transformMockRuleToRule helper) input.program with

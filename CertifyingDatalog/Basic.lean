@@ -281,6 +281,20 @@ lemma List.foldl_union_subset_set {A B: Type} [DecidableEq B] (l: List A) (f: A 
     simp
     tauto
 
+lemma Array.mem_iff_get (a:A) (as: Array A): a ∈ as ↔ ∃ (i:ℕ) (h: i < as.size), as.get (Fin.mk i h) = a := by
+  rw [Array.mem_def, List.mem_iff_get]
+  constructor
+  · intro h
+    rcases h with ⟨n, get_n⟩
+    use n.val
+    use n.isLt
+    unfold get
+    apply get_n
+  · intro h
+    rcases h with ⟨i, hi, get_i⟩
+    use (Fin.mk i hi)
+    unfold get at get_i
+    exact get_i
 
 -- added based on https://leanprover.zulipchat.com/#narrow/stream/113488-general/topic/finset.2Efilter
 noncomputable def Finset.filter_nc (p: A → Prop) (S: Finset A):= @Finset.filter A p (Classical.decPred p) S

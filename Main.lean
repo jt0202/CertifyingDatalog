@@ -297,12 +297,89 @@ by
   unfold mockDatabaseContainedInModel
   simp
 
+def checkValidnessOrderedGraphMockDatabase {helper: parsingArityHelper} (problem: orderedGraphVerificationProblem helper):  Except String Unit :=
+  let m:= parseProgramToSymbolSequenceMap problem.program (fun _ => [])
+  let d:= mockDatabase (parsingSignature helper)
+  validateOrderedProof m d problem.graph
+
+lemma checkValidnessOrderedGraphMockDatabaseIffAllValid {helper: parsingArityHelper} (problem: orderedGraphVerificationProblem helper): checkValidnessOrderedGraphMockDatabase problem = Except.ok () ↔ problem.graph.isValid problem.program.toFinset (mockDatabase (parsingSignature helper)) ∧ (labels problem.graph).toSet ⊆ proofTheoreticSemantics problem.program.toFinset (mockDatabase (parsingSignature helper)) := by
+  unfold checkValidnessOrderedGraphMockDatabase
+  simp
+  rw [validateOrderedProofIffValidAndSubset]
+
+
+def mainCheckOrderedGraphMockDatabase {helper: parsingArityHelper} (problem: orderedGraphVerificationProblem helper) (safe: ∀ (r: rule (parsingSignature helper) ), r ∈ problem.program → r.isSafe): Except String Unit :=
+  let m:= parseProgramToSymbolSequenceMap problem.program (fun _ => [])
+  let d:= mockDatabase (parsingSignature helper)
+  match validateOrderedProof m d problem.graph    with
+  | Except.error e => Except.error e
+  | Except.ok _ =>
+    match modelChecker (labels problem.graph) problem.program safe with
+    | Except.error e => Except.error e
+    | Except.ok _ =>
+      if mockDatabaseContainedInModel d (List.toSet (labels problem.graph)) = true
+      then Except.ok ()
+      else Except.error "Model does not contain database"
+
+lemma mainCheckOrderedGraphMockDatabaseIffSolutionAndValid {helper: parsingArityHelper} (problem: orderedGraphVerificationProblem helper) (safe: ∀ (r: rule (parsingSignature helper) ), r ∈ problem.program → r.isSafe): mainCheckOrderedGraphMockDatabase problem safe = Except.ok () ↔ problem.graph.isValid problem.program.toFinset (mockDatabase (parsingSignature helper)) ∧ (labels problem.graph).toSet = proofTheoreticSemantics problem.program.toFinset (mockDatabase (parsingSignature helper)) := by
+  unfold mainCheckOrderedGraphMockDatabase
+  simp
+  split
+  · rename_i s validateResult
+    simp
+    have validateResult': ¬ validateOrderedProof (parseProgramToSymbolSequenceMap problem.program fun _ => []) (mockDatabase (parsingSignature helper)) problem.graph = Except.ok () := by
+      simp[validateResult]
+    rw [validateOrderedProofSemantics] at validateResult'
+    intro h
+    contradiction
+  · rename_i validateProof
+    rw [validateOrderedProofSemantics] at validateProof
+    split
+    · rename_i s modelCheckResult
+      have modelCheckResult': ¬ modelChecker (labels problem.graph) problem.program safe = Except.ok () := by
+        simp [modelCheckResult]
+      rw [modelCheckerUnitIffAllRulesTrue] at modelCheckResult'
+      simp
+      intro _
+      by_contra h
+      simp at modelCheckResult'
+      have model: model (List.toFinset problem.program) (mockDatabase (parsingSignature helper)) (List.toSet (labels problem.graph)) := by
+        rw [h]
+        apply proofTheoreticSemanticsIsModel
+      unfold model at model
+      rcases model with ⟨rules, _⟩
+      rcases modelCheckResult' with ⟨rule, rule_mem, rule_false⟩
+      specialize rules rule rule_mem
+      contradiction
+    · rename_i modelCheckResult
+      have h: mockDatabaseContainedInModel (mockDatabase (parsingSignature helper)) (List.toSet (labels problem.graph)) = true := by
+        unfold mockDatabaseContainedInModel
+        rfl
+      simp [h]
+      simp [validateProof]
+      apply Set.Subset.antisymm
+      · rw [← validateOrderedProofSemantics, validateOrderedProofIffValidAndSubset] at validateProof
+        simp [validateProof]
+      · rw [SemanticsEquivalence]
+        apply leastModel
+        unfold model
+        constructor
+        · rw [modelCheckerUnitIffAllRulesTrue] at modelCheckResult
+          exact modelCheckResult
+        · rw [mockDatabaseContainedInModelTrue] at h
+          exact h
+
+
+inductive inputFormat where
+| trees: inputFormat
+| graph: inputFormat
+| orderedGraph: inputFormat
 
 structure argsParsed where
   (programFileName: String)
   (complete: Bool)
   (help: Bool)
-  (graph: Bool)
+  (format: inputFormat)
 
 def parseArgsHelper (args: List String) (curr: argsParsed) : Except String argsParsed  :=
   match args with
@@ -312,21 +389,25 @@ def parseArgsHelper (args: List String) (curr: argsParsed) : Except String argsP
     else Except.ok curr
   | hd::tl =>
     if hd ∈ ["-h", "--help"]
-    then Except.ok {programFileName := "", complete := false, help := true, graph:= false}
+    then Except.ok {programFileName := "", complete := false, help := true, format:= inputFormat.trees}
     else  if hd ∈  ["-c", "-g"]
           then
             if hd == "-c"
-            then parseArgsHelper tl {programFileName := "", complete := true, help := false, graph:= curr.graph}
+            then parseArgsHelper tl {programFileName := "", complete := true, help := false, format:= curr.format}
             else
               if hd == "-g"
-              then  parseArgsHelper tl {programFileName := "", complete := curr.complete , help := false, graph:= true}
-              else Except.error ("Unknown argument " ++ hd)
+              then  parseArgsHelper tl {programFileName := "", complete := curr.complete , help := false, format:= inputFormat.graph}
+              else
+                if hd == "-o"
+                then  parseArgsHelper tl {programFileName := "", complete := curr.complete , help := false, format:= inputFormat.orderedGraph}
+                else
+                Except.error ("Unknown argument " ++ hd)
           else
           if tl == []
-          then Except.ok {programFileName := hd, complete := curr.complete, help := false, graph:= curr.graph}
+          then Except.ok {programFileName := hd, complete := curr.complete, help := false, format:= curr.format}
           else Except.error "Too many arguments"
 
-def parseArgs (args: List String): Except String argsParsed := parseArgsHelper args {programFileName := "", complete := false, help:= false, graph:= false}
+def parseArgs (args: List String): Except String argsParsed := parseArgsHelper args {programFileName := "", complete := false, help:= false, format:= inputFormat.trees}
 
 def printHelp: IO Unit := do
   IO.println "Datalog results validity checker"
@@ -336,6 +417,8 @@ def printHelp: IO Unit := do
   IO.println "Options"
   IO.println "  -h --help Help (displayed right now)"
   IO.println "  -g        Use a graph instead of a list of trees as an input via a list of edges (start -- end)"
+  IO.println "  -o        Use an topologically ordered graph instead of a list of trees as an input via a list atom and list of natural numbers of predecessors"
+
   IO.println "  -c        Completeness check: in addition to validating the trees check if result is also a model"
 
 def getTreeProblemFromJson (fileName: String): IO (Except String (verificationProblemSignatureWrapper)) := do
@@ -409,6 +492,41 @@ def main_graph (argsParsed: argsParsed): IO Unit := do
       | Except.error msg => IO.println ("Invalid result due to " ++ msg )
       | Except.ok _ => IO.println "Valid result"
 
+def getOrderedGraphProblemFromJson (fileName: String): IO (Except String (orderedGraphVerificationProblemSignatureWrapper)) := do
+  let filePath := System.FilePath.mk fileName
+  if ← filePath.pathExists
+      then
+        match Lean.Json.parse (← IO.FS.readFile filePath) with
+          | Except.error msg => pure (Except.error ("Error parsing JSON " ++ msg))
+          | Except.ok json =>
+            match Lean.fromJson? (α:=orderedGraphInputProblem) json with
+              | Except.error msg => pure (Except.error ("Json does not match problem description" ++ msg))
+              | Except.ok parsedProblem =>
+                pure (convertOrderedGraphProblemInputToOrderedGraphVerificationProblem parsedProblem)
+  else pure (Except.error "File does not exist")
+
+def main_ordered_graph (argsParsed: argsParsed): IO Unit := do
+  match ← getOrderedGraphProblemFromJson argsParsed.programFileName with
+  | Except.error e => IO.println e
+  | Except.ok transformedInput =>
+    let problem := transformedInput.problem
+    if argsParsed.complete = true
+    then
+      IO.println "Completeness check"
+      match safe: safetyCheckProgram problem.program with
+      | Except.error msg => IO.println msg
+      | Except.ok _ =>
+        have safe': ∀ (r: rule (parsingSignature transformedInput.helper)), r ∈ problem.program → r.isSafe := by
+          rw [safetyCheckProgramUnitIffProgramSafe] at safe
+          apply safe
+        match mainCheckOrderedGraphMockDatabase problem safe' with
+        | Except.ok _ => IO.println "Valid result"
+        | Except.error msg => IO.println ("Invalid result due to " ++ msg )
+    else
+      match checkValidnessOrderedGraphMockDatabase problem with
+      | Except.error msg => IO.println ("Invalid result due to " ++ msg )
+      | Except.ok _ => IO.println "Valid result"
+
 
 def main(args: List String): IO Unit := do
   match parseArgs args with
@@ -417,8 +535,7 @@ def main(args: List String): IO Unit := do
     if argsParsed.help = true
     then printHelp
     else
-      if argsParsed.graph = true
-      then
-        main_graph argsParsed
-      else
-        main_trees argsParsed
+      match argsParsed.format with
+      | inputFormat.trees => main_trees argsParsed
+      | inputFormat.graph => main_graph argsParsed
+      | inputFormat.orderedGraph => main_ordered_graph argsParsed
