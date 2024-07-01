@@ -1262,6 +1262,49 @@ theorem HashMap.findD_is_default_when_not_contains (hm : HashMap A B) (a : A) (h
 
   rfl
 
+
+def HashMap.Imp.Buckets.toList (buckets : Imp.Buckets A B) : List (A × B) := List.foldl (fun mb a => List.foldl (fun mb a => a :: mb) mb a.toList) [] buckets.val.data
+
+-- TODO: probably remove if indeed not required
+-- def HashMap.Imp.Buckets.get_for_key (buckets : Imp.Buckets A B) (a : A) : AssocList A B := 
+--   let index := (mkIdx buckets.prop (hash a).toUSize)
+--   buckets.val[index.val.toNat]
+
+theorem HashMap.Imp.Buckets.in_toList_means_in_list_at_index (buckets : Imp.Buckets A B) (wf : buckets.WF) : (a, b) ∈ buckets.toList -> a ∈ buckets.keys' := by 
+  intro h
+  unfold keys'
+  simp [Array.foldl_eq_foldl_data]
+  sorry
+
+theorem HashMap.Imp.Buckets.in_list_at_index_means_in_toList (buckets : Imp.Buckets A B) : a ∈ buckets.keys' -> ∃ b, (a,b) ∈ buckets.toList := by 
+  intro h
+  rw [keys'_iff_kv] at h
+  cases h with | intro b hb =>
+    unfold kv at hb
+    simp [Array.foldl_eq_foldl_data] at hb
+    exists b
+    unfold toList
+    revert hb
+    have : ∀ bucket_list : List _, (a, b) ∈ List.foldl (fun x y => x ∪ y.toList.toFinset) bucket_list.toFinset buckets.val.data -> (a, b) ∈ List.foldl (fun mb a => List.foldl (fun mb a => a :: mb) mb a.toList) (List.foldl (fun mb a => a :: mb) [] bucket_list) buckets.val.data := by 
+      induction buckets.val.data with 
+      | nil => 
+        intro bucket_list 
+        induction bucket_list with 
+        | nil => simp
+        | cons head tail ih_inner => 
+          intro h
+          simp at h 
+          simp
+          cases h with 
+          | inl hl => rw [hl]; sorry
+          | inr hr => simp at ih_inner; have applied_ih_inner := ih_inner hr; sorry
+      | cons bucket buckets ih => 
+        intro bucket_list hb
+        simp at hb
+        simp
+        sorry
+    apply this []
+
 theorem HashMap.in_projection_of_toList_iff_contains (hm : HashMap A B) (a : A) : a ∈ hm.toList.map Prod.fst ↔ hm.contains a := by
   rw [List.mem_map]
   simp
@@ -1270,9 +1313,21 @@ theorem HashMap.in_projection_of_toList_iff_contains (hm : HashMap A B) (a : A) 
   unfold Imp.fold
   unfold Id.run
   unfold Imp.foldM
-  rw [Array.foldlM_eq_foldlM_data, List.foldlM_eq_foldl]
-  simp
-  sorry
+  simp [Array.foldlM_eq_foldlM_data, List.foldlM_eq_foldl]
+  
+  rw [contains_iff] 
+  
+  constructor
+  . intro h 
+    cases h with | intro b hb => 
+      have wf : hm.val.buckets.WF := (Imp.WF.out hm.prop).2
+      apply Imp.Buckets.in_toList_means_in_list_at_index _ wf
+      apply hb
+  . intro h 
+    unfold keys' at h
+    unfold Imp.keys' at h
+    simp at h
+    cases Imp.Buckets.in_list_at_index_means_in_toList _ h with | intro b hb => exists b
 
 theorem HashMap.ofList_mapped_to_pair_contains_iff_list_elem (l : List A) (a : A) : ∀ b : B, (Batteries.HashMap.ofList (l.map (fun a => (a, b)))).contains a ↔ a ∈ l := by sorry
 
